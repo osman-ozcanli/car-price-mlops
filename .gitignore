@@ -218,4 +218,5 @@ __marimo__/
 .streamlit/secrets.toml
 
 MEMORY.md
+PROGRESS.md
 car_prices_clean.csv
