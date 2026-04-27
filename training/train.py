@@ -35,10 +35,16 @@ REQUIRED_COLS = [
 
 def load_feedback() -> pd.DataFrame:
     print("[train] HuggingFace'den feedback verisi çekiliyor...")
-    dataset = load_dataset(FEEDBACK_REPO_ID, split="train")
-    df = dataset.to_pandas()
-    print(f"[train] {len(df)} satır feedback yüklendi.")
-    return df
+    try:
+        dataset = load_dataset(FEEDBACK_REPO_ID, split="train")
+        df = dataset.to_pandas()
+        print(f"[train] {len(df)} satır feedback yüklendi.")
+        return df
+    except Exception as e:
+        if "EmptyDatasetError" in type(e).__name__ or "doesn't contain any data files" in str(e):
+            print("[train] Feedback dataset henüz boş. Pipeline atlanıyor.")
+            return pd.DataFrame()
+        raise
 
 
 def main():
