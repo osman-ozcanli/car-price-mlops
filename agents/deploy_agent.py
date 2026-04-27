@@ -2,6 +2,7 @@ import os
 import pickle
 import json
 import logging
+import tempfile
 from datetime import datetime
 from sklearn.base import BaseEstimator, TransformerMixin
 from huggingface_hub import HfApi
@@ -18,8 +19,9 @@ class AddInteractions(BaseEstimator, TransformerMixin):
         return X
 
 
-HF_REPO_ID = "Osman-Ozcanli/car_price_prediction"
-HF_SPACE_ID = "Osman-Ozcanli/car_price_prediction_space"
+_HF_USERNAME = os.environ.get("HF_USERNAME", "Osman-Ozcanli")
+HF_REPO_ID  = f"{_HF_USERNAME}/car_price_prediction"
+HF_SPACE_ID = f"{_HF_USERNAME}/car_price_prediction_space"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,14 +55,13 @@ def run(new_model, new_preprocessor, new_interactions, new_pt, new_rmse: float, 
         return False, msg
 
     version_tag = f"v{datetime.now().strftime('%Y%m%d')}"
-    tmp_dir = "/tmp/car_price_deploy"
-    os.makedirs(tmp_dir, exist_ok=True)
+    tmp_dir = tempfile.mkdtemp(prefix="car_price_deploy_")
 
     files = {
         "lgbm_tuned.pkl": new_model,
         "preprocessor.pkl": new_preprocessor,
         "interactions.pkl": new_interactions,
-        "power_transformer.pkl": new_pt,
+        # power_transformer.pkl değişmez — mevcut HF'teki kullanılmaya devam eder
     }
     for filename, obj in files.items():
         _save_pkl(obj, f"{tmp_dir}/{filename}")

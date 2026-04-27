@@ -43,7 +43,8 @@ BEST_PARAMS = {
     "n_estimators": 3298,
 }
 
-HF_REPO_ID = "Osman-Ozcanli/car_price_prediction"
+_HF_USERNAME = os.environ.get("HF_USERNAME", "Osman-Ozcanli")
+HF_REPO_ID   = f"{_HF_USERNAME}/car_price_prediction"
 
 
 def _load_current_model():

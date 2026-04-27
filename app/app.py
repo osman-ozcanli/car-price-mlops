@@ -5,6 +5,7 @@ import joblib
 import random
 import json
 import os
+import tempfile
 from datetime import datetime
 from huggingface_hub import hf_hub_download, HfApi
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -120,7 +121,7 @@ def save_feedback(row: dict):
         df_existing = pd.DataFrame()
 
     df_new   = pd.concat([df_existing, pd.DataFrame([row])], ignore_index=True)
-    tmp_path = f"/tmp/{FEEDBACK_FILE}"
+    tmp_path = os.path.join(tempfile.gettempdir(), FEEDBACK_FILE)
     df_new.to_parquet(tmp_path, index=False)
     api.upload_file(
         path_or_fileobj=tmp_path,

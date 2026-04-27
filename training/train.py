@@ -24,7 +24,8 @@ class AddInteractions(BaseEstimator, TransformerMixin):
 
 
 ORIGINAL_DATA_PATH = os.path.join(os.path.dirname(__file__), "original_data.parquet")
-FEEDBACK_REPO_ID = "Osman-Ozcanli/car_price_prediction_feedback"
+_HF_USERNAME     = os.environ.get("HF_USERNAME", "Osman-Ozcanli")
+FEEDBACK_REPO_ID = f"{_HF_USERNAME}/car_price_prediction_feedback"
 
 REQUIRED_COLS = [
     "make", "model", "trim", "body", "transmission", "state",
