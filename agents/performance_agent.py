@@ -1,5 +1,6 @@
 import os
 import pickle
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -49,20 +50,17 @@ HF_REPO_ID   = f"{_HF_USERNAME}/car_price_prediction"
 
 def _load_current_model():
     path = hf_hub_download(repo_id=HF_REPO_ID, filename="lgbm_tuned.pkl")
-    with open(path, "rb") as f:
-        return pickle.load(f)
+    return joblib.load(path)
 
 
 def _load_current_preprocessor():
     path = hf_hub_download(repo_id=HF_REPO_ID, filename="preprocessor.pkl")
-    with open(path, "rb") as f:
-        return pickle.load(f)
+    return joblib.load(path)
 
 
 def _load_power_transformer():
     path = hf_hub_download(repo_id=HF_REPO_ID, filename="power_transformer.pkl")
-    with open(path, "rb") as f:
-        return pickle.load(f)
+    return joblib.load(path)
 
 
 def _build_preprocessor():
