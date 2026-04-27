@@ -28,9 +28,9 @@ FEEDBACK_REPO_ID = "Osman-Ozcanli/car_price_prediction_feedback"
 
 REQUIRED_COLS = [
     "make", "model", "trim", "body", "transmission", "state",
-    "condition", "odometer", "color", "interior", "seller",
+    "condition", "odometer", "color", "interior",
     "sellingprice", "age"
-]
+]  # seller kaldırıldı (Madde #3): app.py her zaman "unknown" gönderiyor, bilgisiz feature
 
 
 def load_feedback() -> pd.DataFrame:
@@ -75,7 +75,6 @@ def main():
 
     # 4. Orijinal + feedback birleştir
     print("\n[train] Orijinal veri + feedback birleştiriliyor...")
-    df_feedback["seller"] = "unknown"
     df_full = pd.concat(
         [df_original[REQUIRED_COLS], df_feedback[REQUIRED_COLS]],
         ignore_index=True

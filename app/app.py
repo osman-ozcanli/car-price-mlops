@@ -27,7 +27,7 @@ GITHUB_REPO     = "car-price-mlops"
 GITHUB_WORKFLOW = "retrain.yml"
 
 # ── Seçenek listeleri ─────────────────────────────────────────────────────────
-BODY_TYPES    = ["Sedan", "SUV", "Pickup", "Hatchback", "Minivan",
+BODY_TYPES    = ["Sedan", "SUV", "Hatchback", "Minivan",
                  "Coupe", "Wagon", "Convertible", "Van", "Unknown"]
 TRANSMISSIONS = ["automatic", "manual"]
 COLORS        = ["beige", "black", "blue", "brown", "burgundy", "charcoal",
@@ -67,29 +67,43 @@ def load_models():
     for fname in files:
         path = hf_hub_download(repo_id=MODEL_REPO, filename=fname)
         loaded[fname] = joblib.load(path)
+
+    # v_previous: önceki model varsa yükle, yoksa v_current ile aynı
+    try:
+        prev_path = hf_hub_download(repo_id=MODEL_REPO, filename="lgbm_tuned_prev.pkl")
+        loaded["lgbm_tuned_prev.pkl"] = joblib.load(prev_path)
+    except Exception:
+        loaded["lgbm_tuned_prev.pkl"] = loaded["lgbm_tuned.pkl"]
+
     return loaded
 
 # ── Tahmin ────────────────────────────────────────────────────────────────────
-def predict(input_dict, artifacts):
+def predict(input_dict, artifacts, model_version="v_current"):
     df_input = pd.DataFrame([input_dict])
     interact = artifacts["interactions.pkl"]
     preproc  = artifacts["preprocessor.pkl"]
-    model    = artifacts["lgbm_tuned.pkl"]
+    model    = artifacts["lgbm_tuned_prev.pkl"] if model_version == "v_previous" else artifacts["lgbm_tuned.pkl"]
     pt       = artifacts["power_transformer.pkl"]
     X_inter  = interact.transform(df_input)
     X_proc   = preproc.transform(X_inter)
     y_yj     = model.predict(X_proc)
     y_pred   = pt.inverse_transform(y_yj.reshape(-1, 1)).ravel()
-    # return float(np.clip(y_pred, 500, None)[0])  # iste bu satir degisti.
     INFLATION_MULTIPLIER = 1.38
     return float(np.clip(y_pred * INFLATION_MULTIPLIER, 500, None)[0])
 
 # ── Validasyon ────────────────────────────────────────────────────────────────
-def is_valid(price, odometer):
+def is_valid(price, odometer, predicted_price=None):
+    # Defense-in-depth: Streamlit input zaten kısıtlıyor, ama bypass edilirse diye
     if odometer > 300_000:
         return False, "Kilometre değeri kabul sınırı dışında (>300,000 mil)."
     if price < 500 or price > 78_000:
         return False, "Fiyat kabul edilebilir aralık dışında ($500–$78,000)."
+    # Saçma feedback filtresi: gerçek fiyat tahminin 5x üstünde veya 1/5'i altında ise şüpheli
+    if predicted_price and predicted_price > 0:
+        ratio = price / predicted_price
+        if ratio > 5 or ratio < 0.2:
+            return False, (f"Bildirilen fiyat (${price:,}) tahminden (${predicted_price:,.0f}) "
+                           f"çok uzak. Lütfen kontrol et.")
     return True, "OK"
 
 # ── Feedback kaydet ───────────────────────────────────────────────────────────
@@ -161,7 +175,9 @@ with col1:
     transmission = st.selectbox("Vites", TRANSMISSIONS)
 
 with col2:
-    state    = st.selectbox("Eyalet", STATES)
+    state    = st.selectbox("Eyalet", STATES,
+                            help="Az veri bulunan eyaletler için tahmin ulusal ortalamaya yaklaşır; "
+                                 "eyaletinize özgü piyasa farklılıkları tam yansımayabilir.")
     color    = st.selectbox("Dış renk", COLORS)
     interior = st.selectbox("İç renk", INTERIORS)
     age      = st.number_input("Araç yaşı (yıl)", min_value=0, max_value=30,
@@ -169,7 +185,7 @@ with col2:
     odometer = st.number_input("Kilometre (mil)", min_value=0, max_value=300_000,
                                 value=50_000, step=1_000)
     condition = st.slider("Kondisyon (1=kötü · 5=mükemmel)",
-                          min_value=1, max_value=5, value=3, step=1)
+                          min_value=1.0, max_value=5.0, value=3.0, step=0.1)
 
 st.divider()
 
@@ -180,10 +196,10 @@ if st.button("💰 Fiyat Tahmin Et", use_container_width=True, type="primary"):
         "trim": trim if trim else "unknown",
         "body": body, "transmission": transmission, "state": state,
         "color": color, "interior": interior,
-        "age": int(age), "odometer": int(odometer), "condition": int(condition),
+        "age": int(age), "odometer": int(odometer), "condition": float(condition),
         "seller": "unknown"
     }
-    price = predict(input_dict, artifacts)
+    price = predict(input_dict, artifacts, st.session_state.model_version)
     st.session_state["last_prediction"]    = price
     st.session_state["last_input"]         = input_dict
     st.session_state["feedback_given"]     = False
@@ -215,7 +231,11 @@ if st.session_state.get("show_feedback_form") and not st.session_state.get("feed
         submitted = st.form_submit_button("Gönder")
 
         if submitted:
-            valid, reason = is_valid(real_price, st.session_state["last_input"]["odometer"])
+            valid, reason = is_valid(
+                real_price,
+                st.session_state["last_input"]["odometer"],
+                predicted_price=st.session_state.get("last_prediction"),
+            )
             if not valid:
                 st.error(f"Veri reddedildi: {reason}")
             else:
@@ -230,7 +250,8 @@ if st.session_state.get("show_feedback_form") and not st.session_state.get("feed
                     st.success("Teşekkürler! Veriniz kaydedildi.")
                     st.session_state["feedback_given"]     = True
                     st.session_state["show_feedback_form"] = False
-                    if total_new >= THRESHOLD:
+                    # Her THRESHOLD'un katında bir tetikle (10, 20, 30...) — sürekli tetiklemeyi önler
+                    if total_new >= THRESHOLD and total_new % THRESHOLD == 0:
                         trigger_github_actions()
                         st.info("🔄 Yeterli veri birikti, model yeniden eğitim kuyruğuna alındı.")
                 except Exception as e:

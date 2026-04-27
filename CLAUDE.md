@@ -56,12 +56,13 @@ num_cols = ["age", "odometer", "condition", "age_x_odo"]
 ord_cols = ["body", "transmission", "state", "color", "interior"]
 
 # Target — TargetEncoder
-tgt_cols = ["make", "seller", "model", "trim"]
+tgt_cols = ["make", "model", "trim"]   # seller kaldırıldı (Madde #3 düzeltmesi)
 
 # Türetilen
 # age_x_odo = age * odometer  →  AddInteractions class ile pipeline içinde eklenir
 
-# seller → kullanıcıdan alınmaz, her zaman "unknown" geçilir
+# seller → feature listesinden çıkarıldı. app.py mevcut pkl uyumluluğu için input_dict'te
+#          "unknown" göndermeye devam eder; yeni preprocessor bu kolonu sessizce drop eder.
 ```
 
 ### Pipeline Sırası (kesin, değişmez)
@@ -257,7 +258,7 @@ ODOMETER_MAX = 300_000
 3. Yeni model eskisinden iyi değilse deploy yapılmaz, eski model kalır.
 4. Kullanıcı feedback'i validasyondan geçmeden dataset'e girmez.
 5. Her deploy versiyonlanır (HF tag) ve loglanır.
-6. `seller` feature'ı her zaman `"unknown"` geçilir — kullanıcıdan alınmaz.
+6. `seller` feature listesinden çıkarıldı (Madde #3). app.py geriye dönük uyumluluk için input_dict'te `"unknown"` göndermeye devam eder; yeni preprocessor bu kolonu drop eder.
 7. `AddInteractions` class'ı her .py dosyasında tanımlı olmalı (joblib deserialize için).
 8. Enflasyon katsayısı (x1.38) sadece kullanıcıya gösterilen son fiyata uygulanır — eğitimde kullanılmaz.
 

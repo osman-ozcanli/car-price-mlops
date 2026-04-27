@@ -114,10 +114,17 @@ Triggered automatically when:
 
 ---
 
-## GitHub Secrets Required
+## Secrets Required
 
+**GitHub Secrets** (training pipeline için):
 ```
-HF_TOKEN       → HuggingFace write token
+HF_TOKEN       → HuggingFace write token (model + dataset push)
 HF_USERNAME    → Osman-Ozcanli
-GITHUB_TOKEN   → Auto-provided by GitHub Actions (workflow_dispatch)
+```
+
+**HuggingFace Space Secrets** (app.py için):
+```
+HF_TOKEN       → feedback dataset'e yazmak için
+GITHUB_TOKEN   → Personal Access Token (workflow:write scope), GitHub Actions tetiklemek için
+                 NOT: GitHub Actions'ın otomatik sağladığı GITHUB_TOKEN değildir; harici PAT gerekir.
 ```

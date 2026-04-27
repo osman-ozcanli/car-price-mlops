@@ -19,6 +19,7 @@ class AddInteractions(BaseEstimator, TransformerMixin):
 
 
 HF_REPO_ID = "Osman-Ozcanli/car_price_prediction"
+HF_SPACE_ID = "Osman-Ozcanli/car_price_prediction_space"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,6 +77,21 @@ def run(new_model, new_preprocessor, new_interactions, new_pt, new_rmse: float, 
 
     api = HfApi(token=hf_token)
 
+    # Mevcut lgbm_tuned.pkl'yi prev olarak kaydet (gerçek A/B test için)
+    try:
+        from huggingface_hub import hf_hub_download
+        current_path = hf_hub_download(repo_id=HF_REPO_ID, filename="lgbm_tuned.pkl")
+        api.upload_file(
+            path_or_fileobj=current_path,
+            path_in_repo="lgbm_tuned_prev.pkl",
+            repo_id=HF_REPO_ID,
+            repo_type="model",
+            commit_message=f"prev model kaydedildi ({version_tag} öncesi)",
+        )
+        logger.info("Önceki model lgbm_tuned_prev.pkl olarak kaydedildi.")
+    except Exception as e:
+        logger.warning(f"Prev model kaydedilemedi (ilk deploy olabilir): {e}")
+
     for filename in list(files.keys()) + ["deploy_meta.json"]:
         api.upload_file(
             path_or_fileobj=f"{tmp_dir}/{filename}",
@@ -94,6 +110,13 @@ def run(new_model, new_preprocessor, new_interactions, new_pt, new_rmse: float, 
         )
     except Exception as e:
         logger.warning(f"Tag oluşturulamadı (mevcut olabilir): {e}")
+
+    # HF Space'i restart et: @st.cache_resource yeni modeli yüklesin
+    try:
+        api.restart_space(repo_id=HF_SPACE_ID)
+        logger.info(f"HF Space restart tetiklendi: {HF_SPACE_ID}")
+    except Exception as e:
+        logger.warning(f"Space restart başarısız (manuel restart gerekebilir): {e}")
 
     msg = (
         f"Deploy başarılı [{version_tag}]: "

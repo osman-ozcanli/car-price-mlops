@@ -11,10 +11,14 @@ def run(df_new: pd.DataFrame) -> tuple[bool, str]:
     if len(df_new) == 0:
         return False, "Veri seti boş"
 
-    z = (df_new["sellingprice"] - df_new["sellingprice"].mean()) / df_new["sellingprice"].std()
-    outlier_ratio = (z.abs() > 3).mean()
-    if outlier_ratio > 0.05:
-        return False, f"Aykırı değer oranı yüksek: %{outlier_ratio*100:.1f}"
+    # Outlier kontrolü sadece istatistiksel olarak anlamlı örneklem için (>=30 satır).
+    # Daha az satırda hem KS-tipi z-skor güvenilmez hem de %5 eşiği 1 outliera takılır.
+    std = df_new["sellingprice"].std()
+    if len(df_new) >= 30 and std and std > 0:
+        z = (df_new["sellingprice"] - df_new["sellingprice"].mean()) / std
+        outlier_ratio = (z.abs() > 3).mean()
+        if outlier_ratio > 0.05:
+            return False, f"Aykırı değer oranı yüksek: %{outlier_ratio*100:.1f}"
 
     price_invalid = ((df_new["sellingprice"] < 500) | (df_new["sellingprice"] > 78_000)).sum()
     if price_invalid > 0:

@@ -24,10 +24,13 @@ class AddInteractions(BaseEstimator, TransformerMixin):
         X["age_x_odo"] = X["age"] * X["odometer"]
         return X
 
+# app.py __main__ olarak çalışır; pickle uyumluluğu için modül yolunu sabitle
+AddInteractions.__module__ = "__main__"
+
 
 NUM_COLS = ["age", "odometer", "condition", "age_x_odo"]
-ORD_COLS = ["body", "transmission", "state", "color", "interior"]
-TGT_COLS = ["make", "seller", "model", "trim"]
+ORD_COLS = ["body", "transmission", "color", "interior"]   # state -> TGT_COLS'a taşındı (Madde #5)
+TGT_COLS = ["make", "model", "trim", "state"]  # state TargetEncoder'a alındı: bilinmeyen eyalet için global mean fallback
 
 BEST_PARAMS = {
     "learning_rate": 0.01279,
@@ -45,6 +48,12 @@ HF_REPO_ID = "Osman-Ozcanli/car_price_prediction"
 
 def _load_current_model():
     path = hf_hub_download(repo_id=HF_REPO_ID, filename="lgbm_tuned.pkl")
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+def _load_current_preprocessor():
+    path = hf_hub_download(repo_id=HF_REPO_ID, filename="preprocessor.pkl")
     with open(path, "rb") as f:
         return pickle.load(f)
 
@@ -77,11 +86,10 @@ def run(df_full: pd.DataFrame) -> tuple:
     """
     pt_current = _load_power_transformer()
     df_full = df_full.copy()
-    df_full["seller"] = "unknown"
 
     feature_cols = NUM_COLS[:-1] + ORD_COLS + TGT_COLS  # age_x_odo AddInteractions'da eklenir
     feature_cols_base = ["age", "odometer", "condition", "body", "transmission",
-                         "state", "color", "interior", "make", "seller", "model", "trim"]
+                         "state", "color", "interior", "make", "model", "trim"]
 
     X = df_full[feature_cols_base]
     y = df_full["sellingprice"]
@@ -109,8 +117,14 @@ def run(df_full: pd.DataFrame) -> tuple:
 
     new_rmse = float(np.sqrt(mean_squared_error(y_val_orig, y_pred)))
 
+    # Eski model karşılaştırması: eski preprocessor (seller'lı) ile transform et
     old_model = _load_current_model()
-    old_pred_transformed = old_model.predict(X_val_proc)
+    old_preprocessor = _load_current_preprocessor()
+    X_val_old = X_val.copy()
+    if "seller" not in X_val_old.columns:
+        X_val_old["seller"] = "unknown"  # eski preprocessor seller bekliyor
+    X_val_proc_old = old_preprocessor.transform(X_val_old)
+    old_pred_transformed = old_model.predict(X_val_proc_old)
     old_pred = pt_current.inverse_transform(old_pred_transformed.reshape(-1, 1)).ravel()
     old_rmse = float(np.sqrt(mean_squared_error(y_val_orig, old_pred)))
 
