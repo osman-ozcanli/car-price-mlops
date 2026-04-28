@@ -1,5 +1,5 @@
 import os
-import pickle
+import joblib
 import json
 import logging
 import tempfile
