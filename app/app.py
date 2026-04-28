@@ -62,8 +62,8 @@ def load_hierarchy():
 # ── Model yükleme ─────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_models():
-    files = ["lgbm_tuned.pkl", "preprocessor.pkl",
-             "interactions.pkl", "power_transformer.pkl"]
+    # interactions.pkl yüklenmez — AddInteractions stateless, direkt oluşturulur (module uyumsuzluğunu önler)
+    files = ["lgbm_tuned.pkl", "preprocessor.pkl", "power_transformer.pkl"]
     loaded = {}
     for fname in files:
         path = hf_hub_download(repo_id=MODEL_REPO, filename=fname)
@@ -81,7 +81,8 @@ def load_models():
 # ── Tahmin ────────────────────────────────────────────────────────────────────
 def predict(input_dict, artifacts, model_version="v_current"):
     df_input = pd.DataFrame([input_dict])
-    interact = artifacts["interactions.pkl"]
+    # AddInteractions stateless olduğu için pkl'den yüklenmez, direkt oluşturulur
+    interact = AddInteractions()
     preproc  = artifacts["preprocessor.pkl"]
     model    = artifacts["lgbm_tuned_prev.pkl"] if model_version == "v_previous" else artifacts["lgbm_tuned.pkl"]
     pt       = artifacts["power_transformer.pkl"]
