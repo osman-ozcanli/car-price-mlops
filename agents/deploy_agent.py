@@ -31,9 +31,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# YENİ, burasi github workflowdaki hata sonrasi duzeltildi.
+# pickle yerine joblib geldi. sonra detayina bakariz.
+
 def _save_pkl(obj, path: str):
-    with open(path, "wb") as f:
-        pickle.dump(obj, f)
+    joblib.dump(obj, path)
+
 
 
 def run(new_model, new_preprocessor, new_interactions, new_pt, new_rmse: float, old_rmse: float) -> tuple[bool, str]:
