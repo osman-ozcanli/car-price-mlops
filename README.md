@@ -63,7 +63,8 @@ car-price-mlops/
 │   └── push_app_to_space.py   # app.py güncellenince HF Space'e push eder
 ├── .github/
 │   └── workflows/
-│       └── retrain.yml        # Scheduled retraining (Sunday 02:00 UTC)
+│       ├── retrain.yml        # Scheduled retraining (Sunday 02:00 UTC)
+│       └── deploy_app.yml     # app/app.py değişince HF Space'e otomatik push
 ├── requirements.txt
 └── README.md
 ```
