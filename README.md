@@ -59,6 +59,8 @@ car-price-mlops/
 │   ├── data_quality_agent.py  # Agent 1: null + outlier check
 │   ├── performance_agent.py   # Agent 2: train + compare RMSE
 │   └── deploy_agent.py        # Agent 3: push to HF or abort
+├── scripts/
+│   └── push_app_to_space.py   # app.py güncellenince HF Space'e push eder
 ├── .github/
 │   └── workflows/
 │       └── retrain.yml        # Scheduled retraining (Sunday 02:00 UTC)
