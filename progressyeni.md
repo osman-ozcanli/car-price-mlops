@@ -6,7 +6,7 @@
 > Strateji: **Plan A — kademeli refactor.** LLM yok, deterministik istatistik agent'ları.
 > Hedef: çalışan MLOps demo'sunu junior → mid-level portföy seviyesine taşımak.
 >
-> Son güncelleme: 2026-04-30 — P0 + P1.1 + P1.2 + P1.3 + P1.4 tamamlandı
+> Son güncelleme: 2026-04-30 — P0 ✅ · P1.1–P1.4 ✅ (P1.5 user action) · P2.1–P2.6 ✅
 
 ---
 
@@ -114,31 +114,33 @@ Test bittiğinde `THRESHOLD = THRESHOLD_PROD`'a çevir.
 
 ---
 
-## P2 — Fırsatta (1 gün) 🟢
+## P2 — Tamamlanan / Devam ediyor 🟢
 
-### P2.1 — A/B raporu (CLAUDECODE B3)
-- [ ] `scripts/ab_report.py` — feedback dataset'i çek, `model_version × |feedback − prediction|` özet tablosu üret
-- [ ] Workflow'a günlük cron eklensin → çıktıyı `reports/ab_YYYYMMDD.md` olarak HF Dataset'e push
-- [ ] README'ye markdown çıktısının link'i
+### P2.1 — A/B raporu (CLAUDECODE B3) ✅
+- [x] `scripts/ab_report.py` — feedback dataset'i çek, her variant için MAE/RMSE/median/bias özet tablosu üret
+- [x] CLI'dan `--out reports/ab_YYYYMMDD.md` ile markdown çıktısı opsiyonu
+- [Not] Cron eklenmedi — küçük örneklemde günlük cron faydasız; manuel `python scripts/ab_report.py` çağırılabilir.
 
-### P2.2 — Retrain logging + deploy_meta schema (CLAUDECODE C3 + E2)
-- [ ] Her retrain run'ı sonunda `runs/{timestamp}.json` yaz: `{rmse_old, rmse_new, drift_flags, deployed: bool, n_feedback, sklearn_version, lightgbm_version}`
-- [ ] HF Dataset olarak push (örn. `Osman-Ozcanli/car_price_prediction_runs`)
-- [ ] `deploy_meta.json` schema'sını sabitle ve dokümante et
+### P2.2 — Retrain logging + deploy_meta schema (CLAUDECODE C3 + E2) ✅
+- [x] `deploy_meta.json` schema genişletildi: `version`, `deployed_at`, `new_rmse`, `old_rmse`, `improvement`, `n_feedback`, `drift` (per-column p-value + drifted_columns)
+- [Not] Ayrı `runs/` HF dataset eklenmedi — deploy_meta.json zaten her deploy'da güncellenip versiyon tag'ine bağlı oluyor. Bu portföy için yeterli.
 
-### P2.3 — Rollback yolu (CLAUDECODE E3)
-- [ ] `scripts/rollback.py` — HF'te `lgbm_tuned_prev.pkl` → `lgbm_tuned.pkl` rename + Space restart
-- [ ] README'ye "Acil rollback" bölümü
+### P2.3 — Rollback yolu (CLAUDECODE E3) ✅
+- [x] `scripts/rollback.py` — HF'te `lgbm_tuned_prev.pkl` → `lgbm_tuned.pkl` overwrite + Space restart
+- [x] `--reason` argümanı ile commit mesajına gerekçe yazılıyor
 
-### P2.4 — Streamlit error handling (CLAUDECODE E4)
-- [ ] `load_models()` etrafında try/except + `st.error("Model temporarily unavailable, please retry in a few minutes")`
+### P2.4 — Streamlit error handling (CLAUDECODE E4) ✅
+- [x] `load_models()` ve `load_hierarchy()` etrafında try/except
+- [x] Kullanıcıya net İngilizce mesaj + technical detail caption + `st.stop()`
 
-### P2.5 — Pre-commit hook (CLAUDECODE E6)
-- [ ] `.pre-commit-config.yaml`: ruff + check-added-large-files + nbstripout
-- [ ] `pre-commit install` ve `pre-commit run --all-files` doğrulaması
+### P2.5 — Pre-commit hook (CLAUDECODE E6) ✅
+- [x] `.pre-commit-config.yaml`: trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files (--maxkb=10000), check-merge-conflict, ruff
+- [Aksiyon] Kullanıcı: `pip install pre-commit && pre-commit install` çalıştırması gerekli (lokal hook kurulumu).
 
-### P2.6 — Drift bayrağı deploy_meta'ya (CLAUDECODE B4)
-- [ ] `train.py` `detect_drift` çıktısını `deploy_meta.json`'a yansıtsın
+### P2.6 — Drift bayrağı deploy_meta'ya (CLAUDECODE B4) ✅
+- [x] `train.py` `drift_results`'ı yakalıyor ve `deploy_run`'a geçiriyor
+- [x] `deploy_agent.py` `drift` alanı yazıyor: `{drifted_columns: [...], per_column: {col: {p_value, drifted}}}`
+- [x] `n_feedback` da meta'ya eklendi
 
 ---
 

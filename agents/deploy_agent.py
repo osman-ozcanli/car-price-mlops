@@ -34,8 +34,15 @@ logger = logging.getLogger(__name__)
 
 
 def run(new_model, new_preprocessor, new_interactions, new_pt,
-        new_rmse: float, old_rmse: float) -> tuple[bool, str]:
-    """Returns ``(deployed, message)``."""
+        new_rmse: float, old_rmse: float,
+        drift_results: dict | None = None,
+        n_feedback: int | None = None) -> tuple[bool, str]:
+    """Returns ``(deployed, message)``.
+
+    ``drift_results`` is the dict returned by ``training.drift.detect_drift``
+    and is recorded in ``deploy_meta.json`` for post-hoc analysis. ``None``
+    is treated as "drift detection was skipped."
+    """
     if new_rmse >= old_rmse:
         msg = (f"Deploy skipped: new RMSE (${new_rmse:,.0f}) >= "
                f"old RMSE (${old_rmse:,.0f}). Keeping the existing model.")
@@ -58,6 +65,14 @@ def run(new_model, new_preprocessor, new_interactions, new_pt,
     for filename, obj in artifacts.items():
         joblib.dump(obj, f"{tmp_dir}/{filename}")
 
+    drift_summary = None
+    if drift_results:
+        drift_summary = {
+            "drifted_columns": [c for c, r in drift_results.items() if r.get("drifted")],
+            "per_column": {c: {"p_value": r["p_value"], "drifted": r["drifted"]}
+                           for c, r in drift_results.items()},
+        }
+
     meta = {
         "version": version_tag,
         "deployed_at": datetime.now(timezone.utc).isoformat(),
@@ -65,6 +80,8 @@ def run(new_model, new_preprocessor, new_interactions, new_pt,
         "old_rmse": round(old_rmse, 2) if old_rmse != float("inf") else None,
         "improvement": (round(old_rmse - new_rmse, 2)
                         if old_rmse != float("inf") else None),
+        "n_feedback": n_feedback,
+        "drift": drift_summary,
     }
     with open(f"{tmp_dir}/deploy_meta.json", "w") as f:
         json.dump(meta, f, indent=2)

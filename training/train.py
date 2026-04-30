@@ -63,7 +63,7 @@ def main() -> None:
 
     print("\n[train] Drift detection...")
     df_original = pd.read_parquet(ORIGINAL_DATA_PATH)
-    detect_drift(df_original, df_feedback)  # logs only; never blocks
+    drift_results = detect_drift(df_original, df_feedback)  # logs only; never blocks
 
     print("\n[train] Merging original_data + feedback...")
     df_full = pd.concat(
@@ -83,7 +83,9 @@ def main() -> None:
 
     print("\n[train] Agent 3: deploy...")
     deployed, msg = deploy_run(new_model, new_preprocessor, new_interactions,
-                                new_pt, new_rmse, old_rmse)
+                                new_pt, new_rmse, old_rmse,
+                                drift_results=drift_results,
+                                n_feedback=len(df_feedback))
     print(f"[train] Deploy result: {msg}")
 
     print("\n" + "=" * 60)

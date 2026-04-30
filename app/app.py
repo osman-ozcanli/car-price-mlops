@@ -165,9 +165,18 @@ if "model_version" not in st.session_state:
 st.title("🚗 Car Price Predictor")
 st.caption("US used-car market · price range $500–$78,000")
 
-with st.spinner("Loading model..."):
-    artifacts = load_models()
-    hierarchy = load_hierarchy()
+try:
+    with st.spinner("Loading model..."):
+        artifacts = load_models()
+        hierarchy = load_hierarchy()
+except Exception as exc:
+    st.error(
+        "The model is temporarily unavailable. This usually means the "
+        "HuggingFace model repo is briefly unreachable — please retry in a "
+        "few minutes."
+    )
+    st.caption(f"Technical detail: `{type(exc).__name__}: {exc}`")
+    st.stop()
 
 st.divider()
 
