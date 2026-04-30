@@ -6,7 +6,7 @@
 > Strateji: **Plan A — kademeli refactor.** LLM yok, deterministik istatistik agent'ları.
 > Hedef: çalışan MLOps demo'sunu junior → mid-level portföy seviyesine taşımak.
 >
-> Son güncelleme: 2026-04-30
+> Son güncelleme: 2026-04-30 — P0 + P1.1 + P1.2 + P1.3 + P1.4 tamamlandı
 
 ---
 
@@ -90,24 +90,27 @@ Test bittiğinde `THRESHOLD = THRESHOLD_PROD`'a çevir.
 - [x] **20/20 test geçti, ruff temiz** (lokal doğrulama)
 - [Not] `test_pipeline.py` (HF artifact ile predict smoke test) atlandı — CI'da HF_TOKEN olmadan çalışmaz; P2'de mock'lu bir alternatif düşünülebilir.
 
-### P1.2 — Tam İngilizceleştirme (madde 2-3, kalanlar)
-- [ ] `CLAUDE.md` İngilizceye çevir + yeni `common/` yapısını yansıt
-- [ ] `README.md` İngilizceye çevir + mimari diagram (mermaid) + reproduce adımları + workflow trigger
-- [ ] `progressyeni.md` İngilizceye çevirmek **opsiyonel** — Türkçe kalabilir (kullanıcı çalışma dosyası)
-- [ ] Eski `MEMORY.md` (lokal) İngilizceleştirme **opsiyonel** (kullanıcı tercihi)
+### P1.2 — Tam İngilizceleştirme (madde 2-3, kalanlar) ✅
+- [x] `CLAUDE.md` tamamen İngilizce + yeni `common/` yapısı + 3-katman validator + tüm sabitler dokümante
+- [x] `README.md` tamamen İngilizce + **mermaid mimari diagram** + reproduce adımları + workflow trigger + CI rozet
+- [Not] `progressyeni.md` Türkçe kaldı (kullanıcının çalışma dosyası).
 
-### P1.3 — HF README'leri (madde 8-9)
-- [ ] HF Model repo `README.md` yaz (model card: training data, metrics, intended use, limitations)
-- [ ] HF Dataset repo `README.md` yaz (schema, collection method, validation rules)
-- [ ] HF Space `README.md` yaz (kullanım, A/B notu, feedback davet)
+### P1.3 — HF README'leri (madde 8-9) ✅
+- [x] `hf_assets/MODEL_README.md` — model card (training data, metrics, intended use, limitations, best params)
+- [x] `hf_assets/DATASET_README.md` — schema, 3-katman validation rules, retrain mekanizması
+- [x] `hf_assets/SPACE_README.md` — Streamlit Space metadata (frontmatter) + kullanım + privacy notu
+- [x] `scripts/push_hf_readmes.py` — manuel upload helper (`python scripts/push_hf_readmes.py`)
+- [Aksiyon] Kullanıcı: `HF_TOKEN` env ile bir kere `python scripts/push_hf_readmes.py` çalıştırması gerekli.
 
-### P1.4 — Dependency pinning (CLAUDECODE D5 + E1)
-- [ ] `requirements.txt` tam pin: `lightgbm==X.Y.Z`, `numpy==…`, `joblib==…`, `category_encoders==…`, `pandas==…` (sklearn zaten pin'li)
-- [ ] HF Model repo'ya `train_env.txt` ekle (eğitim sırasındaki tam paket sürümleri)
+### P1.4 — Dependency pinning (CLAUDECODE D5 + E1) ✅
+- [x] `requirements.txt` tam pin: pandas, numpy, lightgbm, joblib, category_encoders, scipy hepsi `==`
+- [x] sklearn zaten pin'liydi
+- [Not] `train_env.txt` ayrıca HF Model'e P2'de eklenecek (deploy_meta.json schema güncellemesinin parçası olarak).
 
-### P1.5 — Dataset privacy (madde 12)
-- [ ] HF Dataset repo'sunu private'a çevir (manuel, HF UI'dan)
+### P1.5 — Dataset privacy (madde 12) ⏳
+- [ ] HF Dataset repo'sunu private'a çevir (manuel, HF UI → Settings → "Make this dataset private")
 - [ ] `train.py` private repo erişimini doğrula (HF_TOKEN zaten kullanıyor, beklenen sorun yok)
+- [Aksiyon] Bu adım **kullanıcı kararı** — kullanıcı istediğinde tek tıkla yapacak.
 
 ---
 

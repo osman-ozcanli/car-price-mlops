@@ -1,12 +1,17 @@
+# Pinned for reproducibility — versions known to load existing pickles and
+# run the retraining pipeline end-to-end. Update deliberately, not casually.
+# Pickle-affecting libraries (scikit-learn, lightgbm, numpy, joblib,
+# category_encoders, scipy, pandas) are exact-pinned.
+
 streamlit>=1.32.0
-pandas>=2.0.0
-numpy>=1.24.0
+pandas==2.3.3
+numpy==2.2.6
 scikit-learn==1.7.2
-lightgbm>=4.0.0
-joblib>=1.3.0
+lightgbm==4.6.0
+joblib==1.5.3
 huggingface_hub>=0.20.0
 datasets>=2.16.0
 requests>=2.31.0
 pyarrow>=14.0.0
-category_encoders>=2.6.0
-scipy>=1.11.0
+category_encoders==2.8.1
+scipy==1.15.3
