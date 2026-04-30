@@ -78,14 +78,17 @@ Test bittiğinde `THRESHOLD = THRESHOLD_PROD`'a çevir.
 
 ---
 
-## P1 — Sırada (yarım gün) 🟡
+## P1 — Devam ediyor 🟡
 
-### P1.1 — Test altyapısı + CI (CLAUDECODE C4 + C5)
-- [ ] `tests/__init__.py` oluştur
-- [ ] `tests/test_validation.py` — `validate_feedback` 3 katmanı için test'ler (accept/reject senaryoları, $19K→$35K dahil)
-- [ ] `tests/test_transformers.py` — `AddInteractions` `age × odometer` doğrulaması
-- [ ] `tests/test_pipeline.py` — fake input_dict ile `predict()` smoke test (output > 0, finite)
-- [ ] `.github/workflows/ci.yml` — push'ta `ruff check` + `pytest`
+### P1.1 — Test altyapısı + CI (CLAUDECODE C4 + C5) ✅
+- [x] `tests/__init__.py` oluşturuldu
+- [x] `tests/test_validation.py` — 3 katman accept/reject (canonical $19K→$35K dahil), 14 test
+- [x] `tests/test_transformers.py` — `AddInteractions` `age × odometer` + immutability + statelessness
+- [x] `tests/test_constants.py` — sabit drift'ine karşı sanity guard
+- [x] `.github/workflows/ci.yml` — push + PR'da ruff + pytest
+- [x] `pyproject.toml` — ruff + pytest config (line-length=100, isort)
+- [x] **20/20 test geçti, ruff temiz** (lokal doğrulama)
+- [Not] `test_pipeline.py` (HF artifact ile predict smoke test) atlandı — CI'da HF_TOKEN olmadan çalışmaz; P2'de mock'lu bir alternatif düşünülebilir.
 
 ### P1.2 — Tam İngilizceleştirme (madde 2-3, kalanlar)
 - [ ] `CLAUDE.md` İngilizceye çevir + yeni `common/` yapısını yansıt

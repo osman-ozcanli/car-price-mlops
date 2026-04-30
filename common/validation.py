@@ -17,12 +17,16 @@ Each layer can reject independently — defense in depth.
 
 All checks are deterministic. No LLM, no external calls.
 """
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 from common.constants import (
-    PRICE_MIN, PRICE_MAX, ODOMETER_MAX,
-    FEEDBACK_RATIO_MIN, FEEDBACK_RATIO_MAX, FEEDBACK_ABS_DEVIATION_MAX,
+    FEEDBACK_ABS_DEVIATION_MAX,
+    FEEDBACK_RATIO_MAX,
+    FEEDBACK_RATIO_MIN,
+    ODOMETER_MAX,
+    PRICE_MAX,
+    PRICE_MIN,
 )
 
 

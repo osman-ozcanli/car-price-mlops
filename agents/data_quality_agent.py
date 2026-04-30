@@ -6,7 +6,7 @@ checks then proceeds to drift detection and the performance agent.
 """
 import pandas as pd
 
-from common.constants import PRICE_MIN, PRICE_MAX, ODOMETER_MAX
+from common.constants import ODOMETER_MAX, PRICE_MAX, PRICE_MIN
 
 
 def run(df_new: pd.DataFrame) -> tuple[bool, str]:

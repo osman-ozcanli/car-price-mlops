@@ -7,10 +7,10 @@ this file.
 The Space runs each file as ``__main__``. Shared modules (common/) are bundled
 alongside via the same workflow.
 """
-import os
-import sys
 import json
+import os
 import random
+import sys
 import tempfile
 from datetime import datetime, timezone
 
@@ -27,11 +27,16 @@ _PROJECT_ROOT = os.path.dirname(_HERE)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-from common.transformers import AddInteractions  # noqa: E402
 from common.constants import (  # noqa: E402
-    MODEL_REPO, DATASET_REPO, INFLATION_MULTIPLIER, THRESHOLD,
-    GITHUB_OWNER, GITHUB_REPO, GITHUB_WORKFLOW,
+    DATASET_REPO,
+    GITHUB_OWNER,
+    GITHUB_REPO,
+    GITHUB_WORKFLOW,
+    INFLATION_MULTIPLIER,
+    MODEL_REPO,
+    THRESHOLD,
 )
+from common.transformers import AddInteractions  # noqa: E402
 from common.validation import validate_feedback  # noqa: E402
 
 FEEDBACK_FILE = "feedback.parquet"
