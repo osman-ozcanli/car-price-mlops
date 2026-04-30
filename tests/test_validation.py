@@ -1,7 +1,7 @@
 """Tests for the three-layer feedback validator."""
 import pytest
 
-from common.validation import validate_feedback
+from common.validation import layer25_market_flag, validate_feedback
 
 
 # ── Layer 1: schema / range guard ────────────────────────────────────────────
@@ -77,3 +77,39 @@ class TestAccept:
     def test_within_ratio_band_accepted(self, price, predicted):
         result = validate_feedback(price=price, odometer=50_000, predicted=predicted)
         assert result.accepted
+
+
+# ── Layer 2.5: market-range flag (soft, non-blocking) ────────────────────────
+class TestLayer25MarketFlag:
+    def test_normal_price_not_flagged(self):
+        # $12K is near median ($12,200) — should not be flagged
+        flagged, _ = layer25_market_flag(12_000)
+        assert not flagged
+
+    def test_price_above_3sigma_flagged(self):
+        # median=12200, std=9320 → upper=12200+3*9320=40160
+        flagged, reason = layer25_market_flag(41_000)
+        assert flagged
+        assert "upper bound" in reason
+
+    def test_price_at_upper_boundary_not_flagged(self):
+        # exactly at median+3σ=40160 should not be flagged (inclusive)
+        flagged, _ = layer25_market_flag(40_160)
+        assert not flagged
+
+    def test_price_just_above_upper_boundary_flagged(self):
+        flagged, _ = layer25_market_flag(40_161)
+        assert flagged
+
+    def test_flag_does_not_reject(self):
+        # Price above 3σ is accepted but flagged — never a hard rejection
+        result = validate_feedback(price=50_000, odometer=50_000, predicted=48_000)
+        assert result.accepted
+        assert result.flagged
+        assert result.flag_reason != ""
+
+    def test_normal_price_flag_false_on_result(self):
+        result = validate_feedback(price=10_000, odometer=50_000, predicted=10_000)
+        assert result.accepted
+        assert not result.flagged
+        assert result.flag_reason == ""

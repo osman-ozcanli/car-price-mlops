@@ -271,6 +271,10 @@ if st.session_state.get("show_feedback_form") and not st.session_state.get("feed
                     # not surfaced to the user — keeps internal state private.
                     "model_version": st.session_state["model_version"],
                     "timestamp": datetime.now(timezone.utc).isoformat(),
+                    # Layer 2.5: soft market-range flag. Does not reject but
+                    # marks rows outside median±3σ for optional filtering at retraining.
+                    "flagged": result.flagged,
+                    "flag_reason": result.flag_reason,
                 }
                 try:
                     total_new = save_feedback(row)

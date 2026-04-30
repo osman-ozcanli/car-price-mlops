@@ -18,6 +18,13 @@ FEEDBACK_RATIO_MIN = 0.5
 # both ends (e.g. $500 prediction vs $1500 feedback passes 0.5x but is suspect).
 FEEDBACK_ABS_DEVIATION_MAX = 15_000
 
+# Layer 2.5 market-range flag (soft flag, does not reject).
+# Computed from training/original_data.parquet (552K rows, 2015 auction data).
+# Recompute if training distribution changes significantly.
+MARKET_PRICE_MEDIAN = 12_200
+MARKET_PRICE_STD = 9_320
+MARKET_SIGMA_MULTIPLIER = 3  # flags prices outside median ± 3σ (~$40K upper)
+
 # Retraining trigger thresholds.
 # Demo mode: small threshold so the loop is observable end-to-end during testing.
 # Production mode: statistically meaningful batch.
