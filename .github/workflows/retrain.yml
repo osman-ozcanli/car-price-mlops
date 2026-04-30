@@ -2,26 +2,25 @@ name: Retrain Pipeline
 
 on:
   schedule:
-    - cron: "0 2 * * 0"   # Her Pazar 02:00 UTC
-  workflow_dispatch:        # Manuel + app.py threshold tetikleme
+    - cron: "0 2 * * 0"   # Every Sunday 02:00 UTC
+  workflow_dispatch:        # Manual + threshold-driven dispatch from app.py
 
 jobs:
   retrain:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Repo'yu çek
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Bağımlılıkları yükle
+      - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Pipeline'ı çalıştır
+      - name: Run retraining pipeline
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}

@@ -1,0 +1,25 @@
+name: Keep HF Space Awake
+
+# HuggingFace Spaces on the free tier sleep after ~48h of inactivity. A user
+# arriving at a sleeping Space waits ~30s for cold start; if it fails to wake
+# they see a blank page. A daily HEAD request keeps the Space hot without
+# costing anything.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # Daily at 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HF Space
+        run: |
+          URL="https://${HF_USERNAME,,}-car-price-prediction-space.hf.space/"
+          echo "Pinging ${URL}"
+          curl --silent --show-error --fail --max-time 30 "${URL}" -o /dev/null \
+            && echo "Space responded OK" \
+            || echo "Space ping failed (Space may be cold-starting; non-fatal)"
+        env:
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}

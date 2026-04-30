@@ -4,26 +4,26 @@ on:
   push:
     paths:
       - "app/app.py"
+      - "common/**"
     branches:
       - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Repo'yu çek
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: huggingface_hub kur
+      - name: Install huggingface_hub
         run: pip install huggingface_hub
 
-      - name: app.py'yi HF Space'e push et
+      - name: Push app + common to HF Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}

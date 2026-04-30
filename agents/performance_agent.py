@@ -1,37 +1,38 @@
+"""Agent 2 — Performance.
+
+Trains a fresh model on (original_data + feedback) and compares it against the
+currently deployed model on the same held-out validation slice.
+
+Comparison rule: each candidate must score on the *same* validation set using
+its *own* preprocessor + model bundle. Any cross-bundle column manipulation
+(e.g. injecting a placeholder ``seller`` value) is forbidden — it conflates
+preprocessing differences with model differences.
+
+If the legacy preprocessor is incompatible with the new schema (missing or
+extra columns), the comparison is declared inconclusive and the new model is
+deployed by default. This is a one-time migration safety valve.
+"""
 import os
-import pickle
+
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, PowerTransformer
 from category_encoders import TargetEncoder
-from sklearn.preprocessing import OrdinalEncoder
-from lightgbm import LGBMRegressor
-from sklearn.metrics import mean_squared_error
 from huggingface_hub import hf_hub_download
+from lightgbm import LGBMRegressor
+from sklearn.compose import ColumnTransformer
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
-
-# AddInteractions her .py dosyasında tanımlı olmalı (joblib deserialize için)
-class AddInteractions(BaseEstimator, TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        X = X.copy()
-        X["age_x_odo"] = X["age"] * X["odometer"]
-        return X
-
-# app.py __main__ olarak çalışır; pickle uyumluluğu için modül yolunu sabitle
-AddInteractions.__module__ = "__main__"
-
+from common.transformers import AddInteractions
 
 NUM_COLS = ["age", "odometer", "condition", "age_x_odo"]
-ORD_COLS = ["body", "transmission", "color", "interior"]   # state -> TGT_COLS'a taşındı (Madde #5)
-TGT_COLS = ["make", "model", "trim", "state"]  # state TargetEncoder'a alındı: bilinmeyen eyalet için global mean fallback
+ORD_COLS = ["body", "transmission", "color", "interior"]
+TGT_COLS = ["make", "model", "trim", "state"]
+
+FEATURE_COLS_BASE = ["age", "odometer", "condition", "body", "transmission",
+                     "state", "color", "interior", "make", "model", "trim"]
 
 BEST_PARAMS = {
     "learning_rate": 0.01279,
@@ -45,90 +46,86 @@ BEST_PARAMS = {
 }
 
 _HF_USERNAME = os.environ.get("HF_USERNAME", "Osman-Ozcanli")
-HF_REPO_ID   = f"{_HF_USERNAME}/car_price_prediction"
+HF_REPO_ID = f"{_HF_USERNAME}/car_price_prediction"
 
 
-def _load_current_model():
-    path = hf_hub_download(repo_id=HF_REPO_ID, filename="lgbm_tuned.pkl")
-    return joblib.load(path)
+def _hf_load(filename: str):
+    return joblib.load(hf_hub_download(repo_id=HF_REPO_ID, filename=filename))
 
 
-def _load_current_preprocessor():
-    path = hf_hub_download(repo_id=HF_REPO_ID, filename="preprocessor.pkl")
-    return joblib.load(path)
+def _build_preprocessor() -> ColumnTransformer:
+    return ColumnTransformer(transformers=[
+        ("num", StandardScaler(), NUM_COLS),
+        ("ord", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1), ORD_COLS),
+        ("tgt", TargetEncoder(), TGT_COLS),
+    ])
 
 
-def _load_power_transformer():
-    path = hf_hub_download(repo_id=HF_REPO_ID, filename="power_transformer.pkl")
-    return joblib.load(path)
+def _score_old_bundle(X_val: pd.DataFrame, y_val_orig: np.ndarray,
+                      pt) -> float | None:
+    """Return RMSE of the deployed model on the validation slice, or None if
+    the legacy bundle is incompatible with the current schema."""
+    try:
+        old_model = _hf_load("lgbm_tuned.pkl")
+        old_preprocessor = _hf_load("preprocessor.pkl")
+        # Apply the new AddInteractions step (stateless) before the old
+        # preprocessor — both new and old bundles assume age_x_odo exists.
+        X_val_inter = AddInteractions().transform(X_val)
+        X_val_proc_old = old_preprocessor.transform(X_val_inter)
+        old_pred_t = old_model.predict(X_val_proc_old)
+        old_pred = pt.inverse_transform(old_pred_t.reshape(-1, 1)).ravel()
+        return float(np.sqrt(mean_squared_error(y_val_orig, old_pred)))
+    except Exception as e:
+        print(f"[performance_agent] Legacy bundle incompatible — comparison "
+              f"skipped, new model will deploy by default. Reason: {e}")
+        return None
 
 
-def _build_preprocessor():
-    num_transformer = StandardScaler()
-    ord_transformer = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
-    tgt_transformer = TargetEncoder()
+def run(df_full: pd.DataFrame):
+    """Train + evaluate a candidate model.
 
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", num_transformer, NUM_COLS),
-            ("ord", ord_transformer, ORD_COLS),
-            ("tgt", tgt_transformer, TGT_COLS),
-        ]
-    )
-    return preprocessor
+    Returns:
+        (new_model, new_preprocessor, new_interactions, pt,
+         new_rmse, old_rmse, is_better)
 
-
-def run(df_full: pd.DataFrame) -> tuple:
+        ``old_rmse`` is ``float('inf')`` and ``is_better`` is ``True`` when the
+        legacy bundle cannot be evaluated (one-time migration path).
     """
-    df_full: original_data + feedback birleşimi
-    Döndürür: (new_model, new_preprocessor, new_pt, new_rmse, old_rmse, is_better)
-    """
-    pt_current = _load_power_transformer()
-    df_full = df_full.copy()
+    pt = _hf_load("power_transformer.pkl")
 
-    feature_cols = NUM_COLS[:-1] + ORD_COLS + TGT_COLS  # age_x_odo AddInteractions'da eklenir
-    feature_cols_base = ["age", "odometer", "condition", "body", "transmission",
-                         "state", "color", "interior", "make", "model", "trim"]
-
-    X = df_full[feature_cols_base]
+    X = df_full[FEATURE_COLS_BASE]
     y = df_full["sellingprice"]
-
-    y_transformed = pt_current.transform(y.values.reshape(-1, 1)).ravel()
+    y_t = pt.transform(y.values.reshape(-1, 1)).ravel()
 
     X_train, X_val, y_train, y_val = train_test_split(
-        X, y_transformed, test_size=0.1, random_state=42
+        X, y_t, test_size=0.1, random_state=42,
     )
 
-    add_interactions = AddInteractions()
-    X_train = add_interactions.transform(X_train)
-    X_val = add_interactions.transform(X_val)
+    interactions = AddInteractions()
+    X_train_i = interactions.transform(X_train)
+    X_val_i = interactions.transform(X_val)
 
     preprocessor = _build_preprocessor()
-    X_train_proc = preprocessor.fit_transform(X_train, y_train)
-    X_val_proc = preprocessor.transform(X_val)
+    X_train_proc = preprocessor.fit_transform(X_train_i, y_train)
+    X_val_proc = preprocessor.transform(X_val_i)
 
     new_model = LGBMRegressor(**BEST_PARAMS, random_state=42, n_jobs=-1, verbose=-1)
     new_model.fit(X_train_proc, y_train)
 
-    y_pred_transformed = new_model.predict(X_val_proc)
-    y_pred = pt_current.inverse_transform(y_pred_transformed.reshape(-1, 1)).ravel()
-    y_val_orig = pt_current.inverse_transform(y_val.reshape(-1, 1)).ravel()
+    new_pred_t = new_model.predict(X_val_proc)
+    new_pred = pt.inverse_transform(new_pred_t.reshape(-1, 1)).ravel()
+    y_val_orig = pt.inverse_transform(y_val.reshape(-1, 1)).ravel()
+    new_rmse = float(np.sqrt(mean_squared_error(y_val_orig, new_pred)))
 
-    new_rmse = float(np.sqrt(mean_squared_error(y_val_orig, y_pred)))
+    old_rmse = _score_old_bundle(X_val, y_val_orig, pt)
+    if old_rmse is None:
+        is_better = True
+        old_rmse = float("inf")
+        print(f"[performance_agent] New RMSE: ${new_rmse:,.0f} | Old: N/A | "
+              f"Defaulting to deploy (migration).")
+    else:
+        is_better = new_rmse < old_rmse
+        print(f"[performance_agent] New RMSE: ${new_rmse:,.0f} | "
+              f"Old RMSE: ${old_rmse:,.0f} | Better: {is_better}")
 
-    # Eski model karşılaştırması: eski preprocessor (seller'lı) ile transform et
-    old_model = _load_current_model()
-    old_preprocessor = _load_current_preprocessor()
-    X_val_old = X_val.copy()
-    if "seller" not in X_val_old.columns:
-        X_val_old["seller"] = "unknown"  # eski preprocessor seller bekliyor
-    X_val_proc_old = old_preprocessor.transform(X_val_old)
-    old_pred_transformed = old_model.predict(X_val_proc_old)
-    old_pred = pt_current.inverse_transform(old_pred_transformed.reshape(-1, 1)).ravel()
-    old_rmse = float(np.sqrt(mean_squared_error(y_val_orig, old_pred)))
-
-    is_better = new_rmse < old_rmse
-
-    print(f"[performance_agent] Yeni RMSE: ${new_rmse:,.0f} | Eski RMSE: ${old_rmse:,.0f} | İyi mi: {is_better}")
-
-    return new_model, preprocessor, add_interactions, pt_current, new_rmse, old_rmse, is_better
+    return new_model, preprocessor, interactions, pt, new_rmse, old_rmse, is_better

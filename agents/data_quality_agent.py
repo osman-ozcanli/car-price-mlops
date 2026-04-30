@@ -1,31 +1,40 @@
+"""Agent 1 — Data Quality.
+
+Deterministic statistical checks on the feedback batch before it enters the
+training pipeline. This is the first of three audit layers; survives all
+checks then proceeds to drift detection and the performance agent.
+"""
 import pandas as pd
-import numpy as np
+
+from common.constants import PRICE_MIN, PRICE_MAX, ODOMETER_MAX
 
 
 def run(df_new: pd.DataFrame) -> tuple[bool, str]:
-    if df_new.isnull().sum().sum() > 0:
+    if len(df_new) == 0:
+        return False, "Feedback dataset is empty."
+
+    missing_total = df_new.isnull().sum().sum()
+    if missing_total > 0:
         missing = df_new.isnull().sum()
         missing = missing[missing > 0].to_dict()
-        return False, f"Eksik değer var: {missing}"
+        return False, f"Missing values found: {missing}"
 
-    if len(df_new) == 0:
-        return False, "Veri seti boş"
-
-    # Outlier kontrolü sadece istatistiksel olarak anlamlı örneklem için (>=30 satır).
-    # Daha az satırda hem KS-tipi z-skor güvenilmez hem de %5 eşiği 1 outliera takılır.
+    # Z-score outlier check is only meaningful with a non-trivial sample.
+    # Below ~30 rows, a single legitimate luxury car can trip the 5% gate.
     std = df_new["sellingprice"].std()
     if len(df_new) >= 30 and std and std > 0:
         z = (df_new["sellingprice"] - df_new["sellingprice"].mean()) / std
         outlier_ratio = (z.abs() > 3).mean()
         if outlier_ratio > 0.05:
-            return False, f"Aykırı değer oranı yüksek: %{outlier_ratio*100:.1f}"
+            return False, f"Outlier ratio too high: {outlier_ratio * 100:.1f}%"
 
-    price_invalid = ((df_new["sellingprice"] < 500) | (df_new["sellingprice"] > 78_000)).sum()
+    price_invalid = ((df_new["sellingprice"] < PRICE_MIN) |
+                     (df_new["sellingprice"] > PRICE_MAX)).sum()
     if price_invalid > 0:
-        return False, f"Fiyat aralığı dışı satır var: {price_invalid} adet"
+        return False, f"{price_invalid} rows fall outside the accepted price range."
 
-    odo_invalid = (df_new["odometer"] > 300_000).sum()
+    odo_invalid = (df_new["odometer"] > ODOMETER_MAX).sum()
     if odo_invalid > 0:
-        return False, f"Odometer sınırı aşılmış: {odo_invalid} adet"
+        return False, f"{odo_invalid} rows exceed the odometer limit."
 
-    return True, "Veri temiz"
+    return True, "Data quality checks passed."
